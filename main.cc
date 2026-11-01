@@ -51,7 +51,8 @@ public:
         for (int32_t x = bg; x < WIDTH; x += 2) {
           int8_t nbsum = 0;
           for (int8_t dir = 0; dir < 4; dir++) {
-            int32_t dx = (dir & 0b01) * 2 - 1, dy = (dir & 0b10) - 1;
+            int32_t arg = dir & 0b01, len = (dir & 0b10) - 1;
+            int32_t dx = arg * len, dy = (1 - arg) * len;
             int32_t xx = (x + dx + WIDTH) % WIDTH;
             int32_t yy = (y + dy + HEIGHT) % HEIGHT;
             nbsum += this->state[idx(xx, yy)];
