@@ -26,10 +26,18 @@ private:
   std::mt19937_64 rng;
   double          rands[N()];
 
+  double lut[10];
+
 public:
   Ising(double K, double h, uint64_t seed) : K(K), h(h), rng(seed) {
     for (int32_t i = 0; i < N(); i++)
       this->state[i] = (rng() >> 63) ? 1 : -1;
+#define lu_idx(s, nbsum) (((s) + 1) / 2 + ((((nbsum) + 4) / 2) << 1))
+    for (int8_t ss : {-1, 1}) {
+      for (int8_t nn : {-4, -2, 0, 2, 4}) {
+        lut[lu_idx(ss, nn)] = exp(-2. * ss * (h + K * nn));
+      }
+    }
   }
 
   void sweep() {
@@ -51,12 +59,18 @@ public:
 
           uint32_t idx   = idx(x, y);
           int8_t   s     = this->state[idx];
-          double   omega = exp(-2. * s * (h + K * nbsum));
+          double   omega = lookup(s, nbsum);
           if (omega > rands[idx])
             this->state[idx] *= -1;
         }
       }
     }
+  }
+
+private:
+  inline double lookup(int8_t s, int8_t nbsum) const {
+    return lut[lu_idx(s, nbsum)];
+#undef lu_idx
   }
 };
 
