@@ -1,0 +1,24 @@
+---
+Language: Cpp
+BasedOnStyle: LLVM
+LineEnding: LF
+IndentWidth: 2
+ColumnLimit: 100
+BreakTemplateDeclarations: Yes
+MaxEmptyLinesToKeep: 2
+FixNamespaceComments: true
+IndentCaseLabels: false
+IndentExternBlock: false
+AlignConsecutiveDeclarations:
+  Enabled: true
+  AcrossEmptyLines: false
+  AcrossComments: true
+AlignConsecutiveMacros:
+  Enabled: true
+  AcrossEmptyLines: false
+  AcrossComments: true
+AlignConsecutiveAssignments:
+  Enabled: true
+  AcrossEmptyLines: false
+  AcrossComments: true
+...
