@@ -3,7 +3,7 @@
 #include <random>
 
 
-std::uniform_real_distribution<double> uniform{0., 1.};
+#define map_rand_to_unif(r) ((double)((r) >> 11) * 0x1.0p-53)
 
 
 #define SIZE   256 ///< 必须为偶数
@@ -42,7 +42,7 @@ public:
 
   void sweep() {
     for (uint32_t i = 0; i < N(); i++)
-      rands[i] = uniform(this->rng);
+      rands[i] = map_rand_to_unif(this->rng());
 
     for (int32_t c = 0; c <= 1; c++) {
 #pragma omp parallel for schedule(static)
