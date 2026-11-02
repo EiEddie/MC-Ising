@@ -1,9 +1,8 @@
 #include <cmath>
 #include <cstdint>
-#include <random>
+#include <initializer_list>
 
-
-#define map_rand_to_unif(r) ((double)((r) >> 11) * 0x1.0p-53)
+#include "rand.h"
 
 
 #define SIZE   256 ///< 必须为偶数
@@ -23,15 +22,13 @@ struct Ising {
 private:
   int8_t state[N()];
 
-  std::mt19937_64 rng;
-  double          rands[N()];
-
-  double lut[10];
+  uint64_t seed;
+  double   lut[10];
 
 public:
-  Ising(double K, double h, uint64_t seed) : K(K), h(h), rng(seed) {
+  Ising(double K, double h, uint64_t seed) : K(K), h(h), seed(seed) {
     for (int32_t i = 0; i < N(); i++)
-      this->state[i] = (rng() >> 63) ? 1 : -1;
+      this->state[i] = randd(this->seed, i) > 0.5 ? 1 : -1;
 #define lu_idx(s, nbsum) (((s) + 1) / 2 + ((((nbsum) + 4) / 2) << 1))
     for (int8_t ss : {-1, 1}) {
       for (int8_t nn : {-4, -2, 0, 2, 4}) {
@@ -41,14 +38,14 @@ public:
   }
 
   void sweep() {
-    for (uint32_t i = 0; i < N(); i++)
-      rands[i] = map_rand_to_unif(this->rng());
-
+    static uint32_t cnt = 0;
+    cnt++;
     for (int32_t c = 0; c <= 1; c++) {
 #pragma omp parallel for schedule(static)
       for (int32_t y = 0; y < HEIGHT; y++) {
         int32_t bg = c ^ (y & 1);
         for (int32_t x = bg; x < WIDTH; x += 2) {
+
           int8_t nbsum = 0;
           for (int8_t dir = 0; dir < 4; dir++) {
             int32_t arg = dir & 0b01, len = (dir & 0b10) - 1;
@@ -61,7 +58,8 @@ public:
           uint32_t idx   = idx(x, y);
           int8_t   s     = this->state[idx];
           double   omega = lookup(s, nbsum);
-          if (omega > rands[idx])
+          double   r     = randd(this->seed, cnt * N() + idx);
+          if (omega > r)
             this->state[idx] *= -1;
         }
       }
