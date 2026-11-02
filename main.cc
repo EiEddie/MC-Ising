@@ -1,6 +1,8 @@
 #include <cmath>
 #include <cstdint>
 #include <initializer_list>
+#include <iostream>
+#include <tuple>
 
 #include "rand.h"
 
@@ -102,6 +104,58 @@ public:
     }
   }
 
+  /**
+   * @brief 热化系统
+   *
+   * 使系统达到热平衡状态.
+   *
+   * 使用方差停机逻辑, 当 m (或 |m|) 标准差 σ 小于 eps 时认为达到平衡.
+   * 前 drop 次 sweep 将会被丢弃;
+   * 必须指定 drop 并至少使 drop>1, 否则第一次即会返回.
+   * 最多将会运行 drop+max 次, 超出即停止.
+   *
+   * 将返回 (sweeps, ⟨m⟩, σ); 当外场 h=0 时, 将返回 (sweeps, ⟨|m|⟩, σ).
+   * 当因超出 max 而停机, 返回 (drop+max, nan, nan).
+   */
+  std::tuple<uint32_t, double, double> equilibrate(double eps, uint32_t max, uint32_t drop = 300) {
+    constexpr uint32_t CAPA = 30;
+    constexpr uint32_t STEP = 10;
+
+    double m_s[CAPA]{0}, m_sq_s[CAPA]{0};
+    double m_sum = 0., m_sq_sum = 0.;
+    // cnt 从 1 开始
+    // 否则 drop=0 时, 第一次便会进入判断逻辑
+    // 此时 len=cnt/STEP=i=0, 计算出现问题
+    for (uint32_t cnt = 1; cnt <= max; cnt++) {
+      this->sweep();
+      if (cnt % STEP != 0)
+        continue;
+
+      uint32_t i = cnt / STEP % CAPA;
+      m_sum -= m_s[i];
+      m_sq_sum -= m_sq_s[i];
+      // 当外场 h 为 0 时, 使用 |m| 而非 m.
+      // 因为此时存在一个整体翻转的对称性.
+      m_s[i]    = this->h == 0. ? std::abs(this->m) : this->m;
+      m_sq_s[i] = m_s[i] * m_s[i];
+      m_sum += m_s[i];
+      m_sq_sum += m_sq_s[i];
+#define MIN(x, y) ((x) > (y) ? (y) : (x))
+      double len = MIN(CAPA, cnt / STEP);
+#undef MIN
+      double m_avg = m_sum / len, m_sq_avg = m_sq_sum / len;
+      double var = m_sq_avg - m_avg * m_avg;
+#define MAX(x, y) ((x) > (y) ? (x) : (y))
+      // 当 m 很平缓时, 可能出现浮点误差导致的负方差.
+      var = MAX(0., var);
+      // std::cout << "var:" << var << std::endl;
+#undef MAX
+      if (cnt > drop && var < eps * eps)
+        return std::make_tuple(drop + cnt, m_avg, std::sqrt(var));
+    }
+    return std::make_tuple(drop + max, NAN, NAN);
+  }
+
 private:
   inline double lookup(int8_t s, int8_t nbsum) const {
     return lut[lu_idx(s, nbsum)];
@@ -112,6 +166,6 @@ private:
 
 int main() {
   Ising ising(0.49, 0., 114514);
-  for (uint32_t _ = 0; _ < 10000; _++)
-    ising.sweep();
+  auto [sweeps, m_avg, m_std] = ising.equilibrate(5e-3, 5e4, 300);
+  std::printf("sweeps=%u; ⟨m⟩=%.4f; σ=%.4f", sweeps, m_avg, m_std);
 }
