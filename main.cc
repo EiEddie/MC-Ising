@@ -23,6 +23,7 @@ private:
   int8_t state[N()];
 
   uint64_t seed;
+  uint64_t sweeps = 0;
   double   lut[10];
 
 public:
@@ -38,8 +39,7 @@ public:
   }
 
   void sweep() {
-    static uint32_t cnt = 0;
-    cnt++;
+    this->sweeps++;
     for (int32_t c = 0; c <= 1; c++) {
 #pragma omp parallel for schedule(static)
       for (int32_t y = 0; y < HEIGHT; y++) {
