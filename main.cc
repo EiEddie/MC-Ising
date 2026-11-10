@@ -55,22 +55,33 @@ public:
   }
 
   void _cluster_flip(uint32_t now) {
-    // 翻转当前格点自旋
     int8_t s = this->states[now];
+
+    // 找到所有邻居
+    uint32_t nb[4];
+    for (uint32_t dir = 0; dir < 4; dir++) {
+      int32_t arg = dir & 0b01, len = (dir & 0b10) - 1;
+      int32_t dx = arg * len, dy = (1 - arg) * len;
+      int32_t xx = (now + dx + L) % L;
+      int32_t yy = (now / L + dy + L) % L;
+      nb[dir]    = xx + yy * L;
+    }
+
+    // 翻转当前格点自旋
     this->states[now] *= -1;
-    int8_t nbsum = 0, nbsum_old = 0;
 
-    for (int8_t dir = 0; dir < 4; dir++) {
-      int32_t  arg = dir & 0b01, len = (dir & 0b10) - 1;
-      int32_t  dx = arg * len, dy = (1 - arg) * len;
-      int32_t  xx   = (now + dx + L) % L;
-      int32_t  yy   = (now / L + dy + L) % L;
+    int8_t nbsum = 0;
+    for (uint32_t i = 0; i < 4; i++)
+      nbsum += this->states[nb[i]];
+    // 计算由于这次翻转导致的磁化强度与能量变化
+    this->m += -2. * s / (L * L);
+    // 每个键具有 -K s_i s_j 能量
+    // ΔE = -K (-s) nbsum - (-K) s nbsum = 2 K s nbsum
+    this->e += 2. * K * s * nbsum / (L * L);
+
+    for (int8_t i = 0; i < 4; i++) {
       // 向四周进行深度优先遍历
-      uint32_t next = xx + yy * L;
-
-      // 记录旧的邻居和
-      nbsum_old += this->states[next];
-
+      uint32_t next = nb[i];
       // 仅当邻居与自己自旋相同时才划入同一集团.
       // 因自己的自旋已被翻转, 进入邻居后不会再返回自己,
       //  避免陷入循环.
@@ -79,21 +90,7 @@ public:
         if (p > randd(seed))
           _cluster_flip(next);
       }
-
-      // 记录新的邻居和.
-      // 此时 next 对应的邻居已经完成更新:
-      //  要么未被划入集团, 保持不变;
-      //  或被划入集团且已被翻转.
-      nbsum += this->states[next];
     }
-
-    this->m += -2. * s / (L * L);
-    // 每个键具有 -K s_i s_j 能量
-    // ΔE = -K (-s) nbsum - (-K) s nbsum_old = K s (nbsum+nbsum_old)
-    // FIXME: 能量计算存在问题:
-    //  1. 邻居可能通过另一条 DFS 路径被更新, nbsum_old 状态错误;
-    //  2. 进入邻居时当前格被翻转, 邻居无法得到正确的 nbsum_old.
-    this->e += K * s * (nbsum + nbsum_old) / (L * L);
   }
 
   void sweep() {
