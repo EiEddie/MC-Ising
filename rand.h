@@ -12,6 +12,12 @@ static inline uint64_t _splitmix_final(uint64_t z) {
   return z ^ (z >> 31);
 }
 
+static inline double randd(uint64_t seed, uint64_t counter) {
+  constexpr uint64_t golden = 0x9e3779b97f4a7c15ULL;
+  uint64_t           bits   = _splitmix_final(seed + counter * golden);
+  return map_rand_to_unif(bits);
+}
+
 static inline double randd(uint64_t seed) {
   static uint64_t    counter = 0;
   constexpr uint64_t golden  = 0x9e3779b97f4a7c15ULL;
