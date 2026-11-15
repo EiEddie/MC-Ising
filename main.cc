@@ -12,7 +12,7 @@ struct Ising {
   double   m = 0., e = 0.;
 
   int8_t  *states = nullptr;
-  uint64_t seed;
+  uint64_t seed, counter = 0;
 
 private:
   void nb(uint32_t buf[4], uint32_t idx) {
@@ -43,13 +43,6 @@ private:
     this->e += 2. * K * s * nbsum / (L * L);
   }
 
-public:
-  Ising(uint32_t L, double K, uint64_t seed) : L(L), K(K), seed(seed) {
-    this->states = (int8_t *)std::malloc(L * L);
-  }
-
-  ~Ising() { std::free(this->states); }
-
   int8_t nbsum(uint32_t idx) {
     uint32_t nb[4];
     this->nb(nb, idx);
@@ -58,6 +51,15 @@ public:
       nbsum += this->states[nb[i]];
     return nbsum;
   }
+
+public:
+  Ising(uint32_t L, double K, uint64_t seed) : L(L), K(K), seed(seed) {
+    this->states = (int8_t *)std::malloc(L * L);
+  }
+
+  Ising(const Ising &self) : Ising(self.L, self.K, self.seed) {}
+
+  ~Ising() { std::free(this->states); }
 
   void set_ones() {
     for (uint32_t i = 0; i < L * L; i++)
@@ -69,7 +71,7 @@ public:
   void set_random() {
     double M = 0.;
     for (uint32_t i = 0; i < L * L; i++) {
-      double s        = randd(seed) >= 0.5 ? 1 : -1;
+      double s        = randd(seed, this->counter++) >= 0.5 ? 1 : -1;
       this->states[i] = s;
       M += s;
     }
@@ -99,13 +101,17 @@ public:
         // 必须为同一自旋;
         //   且成键概率被接受.
         // 当前自旋 states[now] 已被翻转, 因此逻辑取反.
-        if (states[next] != -states[now] || p < randd(seed))
+        if (states[next] != -states[now] || p < randd(seed, this->counter++))
           continue;
         this->flip(next);
         cluster.push_back(next);
       }
     }
   }
+
+  double energy() const { return this->e; }
+
+  double magnetization() const { return std::abs(this->m); }
 };
 
 
