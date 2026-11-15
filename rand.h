@@ -18,11 +18,9 @@ static inline double randd(uint64_t seed, uint64_t counter) {
   return map_rand_to_unif(bits);
 }
 
-static inline double randd(uint64_t seed) {
-  static uint64_t    counter = 0;
-  constexpr uint64_t golden  = 0x9e3779b97f4a7c15ULL;
-  uint64_t           bits    = _splitmix_final(seed + (counter++) * golden);
-  return map_rand_to_unif(bits);
+inline double randd(uint64_t seed) {
+  static uint64_t counter = 0;
+  return randd(seed, counter++);
 }
 
 #endif
