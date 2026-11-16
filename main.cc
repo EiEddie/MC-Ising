@@ -120,9 +120,11 @@ public:
 
 
 int main(int, char *argv[]) {
-  const uint64_t seed     = time(nullptr); // 0x114514;
-  const uint32_t len      = 100;
-  const double   m_eps_sq = 3e-2, e_eps_sq = 1e-3;
+  using namespace std;
+
+  const uint64_t seed  = time(nullptr); // 0x114514;
+  const uint32_t len   = 100;
+  const double   m_eps = 1e-2, e_eps = 1e-2;
   const uint32_t drop = 100, interval = 10 /*sweeps*/, datas = 100;
 
   uint32_t L = 128;
@@ -133,24 +135,24 @@ int main(int, char *argv[]) {
   a.set_ones(), b.set_random();
 
   double m_s[len]{0}, e_s[len]{0};
-  double m_cor_var_sum = 0., e_cor_var_sum = 0.;
-  double m_cor_var = 0., e_cor_var = 0.;
+  double m_cor_avg_sum = 0., e_cor_avg_sum = 0.;
+  double m_cor_avg = 0., e_cor_avg = 0.;
 
   uint32_t a_spins = 0, b_spins = 0;
-  for (uint32_t c = 0; c < drop || !(m_cor_var < m_eps_sq && e_cor_var < e_eps_sq); c++) {
+  for (uint32_t c = 0; c < drop || !(abs(m_cor_avg) < m_eps && abs(e_cor_avg) < e_eps); c++) {
     a_spins += a.update(), b_spins += b.update();
 
     double delta_m = a.magnetization() - b.magnetization();
-    m_s[c % len]   = delta_m * delta_m;
-    m_cor_var_sum += m_s[c % len];
-    m_cor_var_sum -= m_s[(c + 1) % len];
-    m_cor_var = m_cor_var_sum / std::min(len, c);
+    m_s[c % len]   = delta_m;
+    m_cor_avg_sum += m_s[c % len];
+    m_cor_avg_sum -= m_s[(c + 1) % len];
+    m_cor_avg = m_cor_avg_sum / min(len, c);
 
     double delta_e = a.energy() - b.energy();
-    e_s[c % len]   = delta_e * delta_e;
-    e_cor_var_sum += e_s[c % len];
-    e_cor_var_sum -= e_s[(c + 1) % len];
-    e_cor_var = e_cor_var_sum / std::min(len, c);
+    e_s[c % len]   = delta_e;
+    e_cor_avg_sum += e_s[c % len];
+    e_cor_avg_sum -= e_s[(c + 1) % len];
+    e_cor_avg = e_cor_avg_sum / min(len, c);
   }
 
   printf("# {"
