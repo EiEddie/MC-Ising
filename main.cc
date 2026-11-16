@@ -85,11 +85,12 @@ public:
     this->e = E / (L * L);
   }
 
-  void update() {
+  uint32_t update() {
+    uint32_t              count = 0;
     std::vector<uint32_t> cluster{};
     cluster.push_back(L * L * randd(seed));
     // 每个格点入栈前必须翻转并计算磁化强度与能量的变化量
-    this->flip(cluster.back());
+    this->flip(cluster.back()), count++;
 
     while (!cluster.empty()) {
       uint32_t now = cluster.back();
@@ -105,10 +106,11 @@ public:
         // 当前自旋 states[now] 已被翻转, 因此逻辑取反.
         if (states[next] != -states[now] || p < randd(seed, this->counter++))
           continue;
-        this->flip(next);
+        this->flip(next), count++;
         cluster.push_back(next);
       }
     }
+    return count;
   }
 
   double energy() const { return this->e; }
@@ -121,7 +123,7 @@ int main(int, char *argv[]) {
   const uint64_t seed     = time(nullptr); // 0x114514;
   const uint32_t len      = 100;
   const double   m_eps_sq = 3e-2, e_eps_sq = 1e-3;
-  const uint32_t drop = 500, interval = 1000, datas = 100;
+  const uint32_t drop = 100, interval = 10 /*sweeps*/, datas = 100;
 
   uint32_t L = 128;
   double   K = 0.4407;
@@ -134,9 +136,9 @@ int main(int, char *argv[]) {
   double m_cor_var_sum = 0., e_cor_var_sum = 0.;
   double m_cor_var = 0., e_cor_var = 0.;
 
-  uint32_t c = 0;
-  for (; c < drop || !(m_cor_var < m_eps_sq && e_cor_var < e_eps_sq); c++) {
-    a.update(), b.update();
+  uint32_t a_spins = 0, b_spins = 0;
+  for (uint32_t c = 0; c < drop || !(m_cor_var < m_eps_sq && e_cor_var < e_eps_sq); c++) {
+    a_spins += a.update(), b_spins += b.update();
 
     double delta_m = a.magnetization() - b.magnetization();
     m_s[c % len]   = delta_m * delta_m;
@@ -155,19 +157,24 @@ int main(int, char *argv[]) {
          "\"L\":%d,"
          "\"K\":%f,"
          "\"seed\":%lld,"
-         "\"equilibrate\":%d,"
+         "\"equilibrate\":[%f,%f],"
          "\"interval\":%d,"
          "\"datas\":%d"
          "}\n",
-         L, K, seed, c, interval, datas);
+         L, K, seed, (double)a_spins / (L * L), (double)b_spins / (L * L), interval, datas);
 
   printf("m_abs,e\n");
-  for (uint32_t i = 1; i <= datas * interval; i++) {
-    if (i % interval == 0) {
+  for (uint32_t d = 0, spins = 0, sweeps = 0; d <= datas;) {
+    spins += a.update();
+    uint32_t tmp = spins / (L * L);
+    sweeps += tmp;
+    spins -= tmp * (L * L);
+    if (sweeps >= interval) {
       printf("%f,%f\n", a.magnetization(), a.energy());
       fflush(stdout);
+      sweeps -= interval;
+      d += 1;
     }
-    a.update();
   }
 
   return 0;
