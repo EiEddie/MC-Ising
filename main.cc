@@ -1,6 +1,8 @@
 #include <cmath>
 #include <cstdint>
+#include <cstdio>
 #include <cstdlib>
+#include <ctime>
 #include <vector>
 
 #include "rand.h"
@@ -115,4 +117,58 @@ public:
 };
 
 
-int main() { return 0; }
+int main(int, char *argv[]) {
+  const uint64_t seed     = time(nullptr); // 0x114514;
+  const uint32_t len      = 100;
+  const double   m_eps_sq = 3e-2, e_eps_sq = 1e-3;
+  const uint32_t drop = 500, interval = 1000, datas = 100;
+
+  uint32_t L = 128;
+  double   K = 0.4407;
+  sscanf_s(argv[1], "L=%d,K=%lf", &L, &K);
+
+  Ising a(L, K, seed), b(a);
+  a.set_ones(), b.set_random();
+
+  double m_s[len]{0}, e_s[len]{0};
+  double m_cor_var_sum = 0., e_cor_var_sum = 0.;
+  double m_cor_var = 0., e_cor_var = 0.;
+
+  uint32_t c = 0;
+  for (; c < drop || !(m_cor_var < m_eps_sq && e_cor_var < e_eps_sq); c++) {
+    a.update(), b.update();
+
+    double delta_m = a.magnetization() - b.magnetization();
+    m_s[c % len]   = delta_m * delta_m;
+    m_cor_var_sum += m_s[c % len];
+    m_cor_var_sum -= m_s[(c + 1) % len];
+    m_cor_var = m_cor_var_sum / std::min(len, c);
+
+    double delta_e = a.energy() - b.energy();
+    e_s[c % len]   = delta_e * delta_e;
+    e_cor_var_sum += e_s[c % len];
+    e_cor_var_sum -= e_s[(c + 1) % len];
+    e_cor_var = e_cor_var_sum / std::min(len, c);
+  }
+
+  printf("# {"
+         "\"L\":%d,"
+         "\"K\":%f,"
+         "\"seed\":%lld,"
+         "\"equilibrate\":%d,"
+         "\"interval\":%d,"
+         "\"datas\":%d"
+         "}\n",
+         L, K, seed, c, interval, datas);
+
+  printf("m_abs,e\n");
+  for (uint32_t i = 1; i <= datas * interval; i++) {
+    if (i % interval == 0) {
+      printf("%f,%f\n", a.magnetization(), a.energy());
+      fflush(stdout);
+    }
+    a.update();
+  }
+
+  return 0;
+}
