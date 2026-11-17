@@ -119,17 +119,20 @@ public:
 };
 
 
-int main(int, char *argv[]) {
+int main(int argc, char *argv[]) {
   using namespace std;
 
-  const uint64_t seed  = time(nullptr); // 0x114514;
-  const uint32_t len   = 100;
-  const double   m_eps = 1e-2, e_eps = 1e-2;
+  const uint64_t seed = time(nullptr); // 0x114514;
+  const uint32_t len  = 100;
   const uint32_t drop = 100, interval = 10 /*sweeps*/, datas = 100;
 
-  uint32_t L = 128;
-  double   K = 0.4407;
-  sscanf_s(argv[1], "L=%d,K=%lf", &L, &K);
+  uint32_t L     = 128;
+  double   K     = 0.4407;
+  double   eps_m = 1e-2, eps_e = 1e-2;
+  if (argc >= 2)
+    sscanf_s(argv[1], "L=%d,K=%lf", &L, &K);
+  if (argc >= 3)
+    sscanf_s(argv[2], "eps_m=%lf,eps_e=%lf", &eps_m, &eps_e);
 
   Ising a(L, K, seed), b(a);
   a.set_ones(), b.set_random();
@@ -139,7 +142,7 @@ int main(int, char *argv[]) {
   double m_cor_avg = 0., e_cor_avg = 0.;
 
   uint32_t a_spins = 0, b_spins = 0;
-  for (uint32_t c = 0; c < drop || !(abs(m_cor_avg) < m_eps && abs(e_cor_avg) < e_eps); c++) {
+  for (uint32_t c = 0; c < drop || !(abs(m_cor_avg) < eps_m && abs(e_cor_avg) < eps_e); c++) {
     a_spins += a.update(), b_spins += b.update();
 
     double delta_m = a.magnetization() - b.magnetization();
